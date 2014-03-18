@@ -1,10 +1,13 @@
 VERSION=2.0.0
+MAJOR_VERSION=$(firstword $(subst ., ,$(VERSION)))
 
 # This changes default "cc" to "gcc", but still allows customization of the CC variable
 # if this line causes problems with non-GNU make, just remove it:
 CC := $(patsubst cc,gcc,$(CC))
 
 STATICLIB=libimagequant.a
+SOLIB_MINOR=libimagequant.so.$(VERSION)
+SOLIB_MAJOR=libimagequant.so.$(MAJOR_VERSION)
 DLL=libimagequant.dll
 DLLIMP=libimagequant_dll.a
 DLLDEF=libimagequant_dll.def
@@ -25,10 +28,19 @@ BUILD_CONFIGURATION="$(CC) $(CFLAGS) $(LDFLAGS)"
 DISTFILES = $(OBJS:.o=.c) *.h MANUAL.md COPYRIGHT Makefile
 TARNAME = libimagequant-$(VERSION)
 TARFILE = $(TARNAME)-src.tar.bz2
+PREFIX ?= /usr
 
 all: static
 
+install: dynamic
+	cp -f $(SOLIB_MINOR) $(PREFIX)/lib/$(SOLIB_MINOR)
+	ldconfig -n $(PREFIX)/lib
+
 static: $(STATICLIB)
+
+dynamic: CFLAGS += -fPIC
+
+dynamic: $(SOLIB_MINOR)
 
 dll:
 	$(MAKE) CFLAGSADD="-DLIQ_EXPORT='__declspec(dllexport)'" $(DLL)
@@ -41,6 +53,9 @@ $(DLL) $(DLLIMP): $(OBJS)
 
 $(STATICLIB): $(OBJS)
 	$(AR) $(ARFLAGS) $@ $^
+
+$(SOLIB_MINOR): $(OBJS)
+	$(CC) -shared -Wl,-soname,$(SOLIB_MAJOR) $^ -o $@
 
 $(OBJS): pam.h build_configuration
 
